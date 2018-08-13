@@ -39,8 +39,12 @@ namespace ld42jam.CCLambda
             float size = 0;
             while (size < diameter)
             {
+                if (gameObject == null)
+                    yield break;
+
                 gameObject.transform.localScale = Vector3.one * size;
                 yield return null;
+
                 size += sizeStep * Time.deltaTime;
             }
             gameObject.transform.localScale = Vector3.one * diameter;
@@ -55,9 +59,18 @@ namespace ld42jam.CCLambda
         }
 
         //--------------------------------------------------------------------------------------------------------------------------------
+        public bool IsGreaterOrEqual(float size)
+        {
+            return diameter >= size;
+        }
+
+        //--------------------------------------------------------------------------------------------------------------------------------
         public void OnDestroy()
         {
-            Object.Destroy(gameObject);
+            if (gameObject != null)
+            {
+                Object.Destroy(gameObject);
+            }
         }
 
         //--------------------------------------------------------------------------------------------------------------------------------
@@ -119,7 +132,7 @@ namespace ld42jam.CCLambda
         }
 
         //--------------------------------------------------------------------------------------------------------------------------------
-        public void Update(float timeStep, float vDiffusion)
+        public void Update(float timeStep, float vDiffusion, ref float totalSize, float collapseSize)
         {
             gameObject.transform.position += velocity * timeStep;
             velocity *= vDiffusion;
@@ -129,6 +142,15 @@ namespace ld42jam.CCLambda
                 angle -= 360;
 
             gameObject.transform.rotation = Quaternion.Euler(90, angle, 0);
+
+            if (diameter >= (0.85f * collapseSize))
+            {
+                float speed = diameter / collapseSize;
+                float wave = 0.975f + 0.05f * Mathf.Sin(angle * speed);
+                gameObject.transform.localScale = diameter * wave * Vector3.one;
+            }
+
+            totalSize += diameter;
         }
 
         //--------------------------------------------------------------------------------------------------------------------------------

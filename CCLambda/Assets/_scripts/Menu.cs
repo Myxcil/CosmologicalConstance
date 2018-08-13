@@ -17,23 +17,31 @@ namespace ld42jam.CCLambda
         private GameObject btnQuit;
         [SerializeField]
         private GameObject intro;
+        [SerializeField]
+        private GameObject gameOver;
 
         [SerializeField]
-        private GameObject universe;
+        private Universe universe;
 
         //------------------------------------------------------------------------------------------------------------------------------------
-        private bool isBusy;
+        private volatile bool isBusy;
         private bool introWasShown;
 
         //------------------------------------------------------------------------------------------------------------------------------------
         protected override void Start()
         {
             base.Start();
+
             title.SetActive(true);
             btnStart.SetActive(true);
             intro.SetActive(false);
-            universe.SetActive(false);
+
+            universe.OnGameOver = OnStopGame;
+            universe.gameObject.SetActive(false);
+
             btnQuit.SetActive(false);
+            gameOver.SetActive(false);
+
             introWasShown = false;
         }
 
@@ -48,25 +56,19 @@ namespace ld42jam.CCLambda
         //------------------------------------------------------------------------------------------------------------------------------------
         public void OnStartGame()
         {
-            if (isBusy)
-                return;
-
             StartCoroutine(StartGame());
-        }
-
-        //------------------------------------------------------------------------------------------------------------------------------------
-        public void OnStopGame()
-        {
-            universe.SetActive(false);
-            btnQuit.SetActive(false);
-
-            title.SetActive(true);
-            btnStart.SetActive(true);
         }
 
         //------------------------------------------------------------------------------------------------------------------------------------
         private IEnumerator StartGame()
         {
+            while (isBusy)
+            {
+                yield return new WaitForSeconds(1.0f);
+            }
+
+            isBusy = true;
+
             title.SetActive(false);
             btnStart.SetActive(false);
 
@@ -90,8 +92,49 @@ namespace ld42jam.CCLambda
                 introWasShown = true;
             }
 
-            universe.SetActive(true);
+            universe.gameObject.SetActive(true);
             btnQuit.SetActive(true);
+
+            isBusy = false;
         }
-    }
+
+        //------------------------------------------------------------------------------------------------------------------------------------
+        public void OnStopGame()
+        {
+            StartCoroutine(StopGame());
+        }
+
+        //------------------------------------------------------------------------------------------------------------------------------------
+        private IEnumerator StopGame()
+        {
+            while(isBusy)
+            {
+                yield return new WaitForSeconds(1.0f);
+            }
+
+            isBusy = true;
+
+            universe.gameObject.SetActive(false);
+            btnQuit.SetActive(false);
+
+            gameOver.SetActive(true);
+
+            Text gameOverText = gameOver.GetComponent<Text>();
+            gameOverText.text = string.Format("Game Over\n\n{0}\nMax {1:0.000} Hz", universe.Score, universe.MaxRate);
+            yield return null;
+
+            while (!Input.GetMouseButtonUp(0))
+            {
+                yield return null;
+            }
+            yield return null;
+
+            gameOver.SetActive(false);
+
+            title.SetActive(true);
+            btnStart.SetActive(true);
+
+            isBusy = false;
+        }
+   }
 }

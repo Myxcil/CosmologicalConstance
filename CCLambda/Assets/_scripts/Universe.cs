@@ -16,11 +16,16 @@ namespace ld42jam.CCLambda
         [SerializeField]
         private float mergeGalaxyFactor = 0.2f;
         [SerializeField]
+        private float galaxyCollapseSize = 12.0f;
+        [SerializeField]
+        private float diameterScoreScale = 0.1f;
+
+        [SerializeField]
         private UnityEngine.UI.Text txtScore;
         [SerializeField]
-        private AudioClip acPush;
+        private AudioSource asPush;
         [SerializeField]
-        private AudioClip acMerge;
+        private AudioSource asMerge;
         [SerializeField]
         private GameObject clickFX;
 
@@ -36,12 +41,20 @@ namespace ld42jam.CCLambda
         private float nextGalaxySpawn;
 
         private float score;
+        public int Score { get { return (int)score; } }
+
+        public float MaxRate { get; private set; }
+
+        //------------------------------------------------------------------------------------------------------------------------------------
+        public delegate void GameOver();
+        public GameOver OnGameOver = null;
 
         //------------------------------------------------------------------------------------------------------------------------------------
         private void Awake()
         {
             galaxies = new List<Galaxy>();
             deleteList = new List<int>();
+            clickFX.SetActive(false);
         }
 
         //------------------------------------------------------------------------------------------------------------------------------------
@@ -54,13 +67,20 @@ namespace ld42jam.CCLambda
             clickFX.SetActive(false);
 
             score = 0;
-            txtScore.text = string.Format("{0}", (int)score);
+            MaxRate = 0;
+
+            txtScore.text = string.Format("{0} (d={1:0.000})", 0, 0.0f);
             txtScore.gameObject.SetActive(true);
         }
 
         //------------------------------------------------------------------------------------------------------------------------------------
         private void OnDisable()
         {
+            if (clickFX != null)
+            {
+                clickFX.SetActive(false);
+            }
+
             if (txtScore != null && txtScore.gameObject != null)
             {
                 txtScore.gameObject.SetActive(false);
@@ -101,11 +121,12 @@ namespace ld42jam.CCLambda
             }
             if (!wasActive && pusherActive)
             {
-                AudioSource.PlayClipAtPoint(acPush, Vector3.zero);
+                asPush.Play();
                 clickFX.SetActive(true);
             }
             else if (wasActive && !pusherActive)
             {
+                asPush.Stop();
                 clickFX.SetActive(false);
             }
 
@@ -115,18 +136,19 @@ namespace ld42jam.CCLambda
                 {
                     if (Galaxy.UpdateVelocities(galaxies[i], galaxies[j], mergeGalaxyFactor, i, j, deleteList))
                     {
-                        AudioSource.PlayClipAtPoint(acMerge, Vector3.zero);
+                        asMerge.Play();
                     }
                 }
             }
-            
+
+            float totalSize = 0;
             for (int i = 0; i < galaxies.Count; ++i)
             {
                 if (pusherActive)
                 {
                     galaxies[i].ApplyPush(pusherPosition, pushValue);
                 }
-                galaxies[i].Update(Time.deltaTime, velocityDiffusion);
+                galaxies[i].Update(Time.deltaTime, velocityDiffusion, ref totalSize, galaxyCollapseSize);
             }
 
             if (deleteList.Count > 0)
@@ -142,15 +164,23 @@ namespace ld42jam.CCLambda
                 }
                 deleteList.Clear();
             }
+            maxGalaxies = Mathf.Max(maxGalaxies, galaxies.Count);
 
-            if (galaxies.Count > 1)
+            int oldScore = (int)score;
+            float deltaScore = diameterScoreScale * totalSize * Mathf.Max(0, galaxies.Count - 1);
+            score += deltaScore * Time.deltaTime;
+            int newScore = (int)score;
+            if (oldScore != newScore)
             {
-                int oldScore = (int)score;
-                score += (galaxies.Count - 1) * Time.deltaTime;
-                int newScore = (int)score;
-                if (oldScore != newScore)
+                txtScore.text = string.Format("{0} (d={1:0.000} Hz)", newScore, deltaScore);
+            }
+            MaxRate = Mathf.Max(MaxRate, deltaScore);
+
+            if (galaxies.Count == 1 && maxGalaxies > 1)
+            {
+                if (galaxies[0].IsGreaterOrEqual(maxGalaxies))
                 {
-                    txtScore.text = newScore.ToString();
+                    OnGameOver.Invoke();
                 }
             }
         }
