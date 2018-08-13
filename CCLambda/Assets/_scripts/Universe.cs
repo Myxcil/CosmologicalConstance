@@ -76,6 +76,15 @@ namespace ld42jam.CCLambda
         //------------------------------------------------------------------------------------------------------------------------------------
         private void OnDisable()
         {
+            if (asPush != null)
+            {
+                asPush.Stop();
+            }
+            if (asMerge != null)
+            {
+                asMerge.Stop();
+            }
+
             if (clickFX != null)
             {
                 clickFX.SetActive(false);
